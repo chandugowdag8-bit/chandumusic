@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="kn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chandu Music | Premium Cloud</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+    <style>
+        :root { --accent: #1ED760; --bg: #000; --glass: rgba(255,255,255,0.06); }
+        * { margin:0; padding:0; box-sizing:border-box; font-family: 'Plus Jakarta Sans', sans-serif; }
+        
+        body { 
+            background: #000;
+            background-image: radial-gradient(circle at 0% 0%, #1e3a2b 0%, transparent 40%),
+                              radial-gradient(circle at 100% 100%, #111 0%, transparent 40%);
+            color: #fff; min-height: 100vh; overflow-x: hidden;
+        }
+
+        /* 🔐 Glass Login Overlay */
+        #auth-screen { 
+            position: fixed; inset: 0; z-index: 10000; 
+            background: rgba(0,0,0,0.85); backdrop-filter: blur(20px);
+            display: flex; align-items: center; justify-content: center; padding: 20px; 
+        }
+        .login-card { 
+            background: var(--glass); border: 1px solid rgba(255,255,255,0.1);
+            padding: 40px; border-radius: 30px; width: 100%; max-width: 400px; text-align: center;
+        }
+
+        /* 💻 Responsive Container */
+        .container { max-width: 1100px; margin: 0 auto; padding: 20px; }
+
+        /* 🔍 Search Header */
+        header { 
+            display: flex; justify-content: space-between; align-items: center; 
+            padding: 20px 0; margin-bottom: 20px; flex-wrap: wrap; gap: 20px;
+        }
+        .search-bar { 
+            position: relative; flex: 1; min-width: 280px; max-width: 500px;
+        }
+        .search-bar input { 
+            width: 100%; padding: 14px 45px; border-radius: 15px; border: 1px solid #333;
+            background: var(--glass); color: #fff; outline: none; font-size: 0.95rem;
+        }
+        .search-bar i { position: absolute; left: 15px; top: 16px; color: #888; }
+        
+        .voice-btn { 
+            background: var(--accent); border: none; width: 48px; height: 48px;
+            border-radius: 12px; cursor: pointer; color: #000; margin-left: 10px;
+        }
+
+        /* 🎵 Responsive Grid */
+        .grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); 
+            gap: 20px; 
+        }
+
+        /* 📱 Mobile Adjustments for Grid */
+        @media (max-width: 600px) {
+            .grid { grid-template-columns: 1fr; }
+            .track-card { display: flex !important; align-items: center; padding: 10px !important; }
+            .track-card img { width: 60px !important; height: 60px !important; margin-bottom: 0 !important; margin-right: 15px; }
+            .track-card b { font-size: 1rem !important; }
+        }
+
+        .track-card { 
+            background: var(--glass); border: 1px solid rgba(255,255,255,0.05);
+            padding: 15px; border-radius: 20px; cursor: pointer; transition: 0.3s;
+        }
+        .track-card:hover { background: rgba(255,255,255,0.12); transform: translateY(-5px); border-color: var(--accent); }
+        .track-card img { width: 100%; aspect-ratio: 1; border-radius: 15px; object-fit: cover; margin-bottom: 12px; }
+        .track-card b { font-size: 0.9rem; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .track-card span { color: #888; font-size: 0.8rem; }
+
+        /* 🕹️ Desktop & Mobile Player */
+        .player-bar { 
+            position: fixed; bottom: 0; left: 0; right: 0; 
+            background: rgba(10,10,10,0.8); backdrop-filter: blur(30px);
+            border-top: 1px solid #222; padding: 15px 20px; z-index: 1000;
+            display: none; align-items: center; justify-content: center;
+        }
+        .p-content { max-width: 1100px; width: 100%; display: flex; align-items: center; gap: 20px; }
+        .p-img { width: 55px; height: 55px; border-radius: 10px; }
+        .p-controls { flex: 1; }
+        .p-play { font-size: 2.5rem; color: var(--accent); cursor: pointer; }
+
+        .main-btn { 
+            background: var(--accent); color: #000; padding: 15px; width: 100%;
+            border-radius: 12px; border: none; font-weight: 800; cursor: pointer; margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="auth-screen">
+        <div class="login-card">
+            <h1 style="margin-bottom:10px">Chandu Music</h1>
+            <p style="color:#888; margin-bottom:25px">Listen to the best Kannada hits</p>
+            <input type="text" id="reg-name" placeholder="Full Name" style="width:100%; padding:15px; background:#111; border:1px solid #333; color:#fff; border-radius:12px; margin-bottom:10px">
+            <input type="number" id="reg-phone" placeholder="Mobile Number" style="width:100%; padding:15px; background:#111; border:1px solid #333; color:#fff; border-radius:12px;">
+            <button class="main-btn" onclick="register()">Get Started</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <header>
+            <h1 id="greet" style="font-weight:800; font-size:1.8rem;">Namaste</h1>
+            <div style="display:flex; align-items:center;">
+                <div class="search-bar">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="search-input" placeholder="Search songs..." oninput="searchSongs()">
+                </div>
+                <button class="voice-btn" onclick="startVoice()"><i class="fas fa-microphone"></i></button>
+                <i class="fas fa-cog" onclick="goAdmin()" style="margin-left:20px; color:#333; cursor:pointer;"></i>
+            </div>
+        </header>
+
+        <div class="grid" id="list-container"></div>
+    </div>
+
+    <div class="player-bar" id="player">
+        <div class="p-content">
+            <img id="p-img" src="" class="p-img">
+            <div class="p-controls">
+                <b id="p-title" style="display:block"></b>
+                <span id="p-art" style="color:#888; font-size:0.8rem"></span>
+            </div>
+            <i class="fas fa-pause-circle p-play" id="p-play-btn" onclick="togglePlay()"></i>
+        </div>
+    </div>
+
+    <audio id="audio"></audio>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyDwmohkSpr9XIy4vvlAieUqVQZv2bjAkTU",
+            authDomain: "chandu-music.firebaseapp.com",
+            databaseURL: "https://chandu-music-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "chandu-music",
+            storageBucket: "chandu-music.firebasestorage.app",
+            messagingSenderId: "411466508966",
+            appId: "1:411466508966:web:40612efd3ba687da1fa267"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        let allSongs = [];
+
+        function register() {
+            const name = document.getElementById('reg-name').value;
+            const phone = document.getElementById('reg-phone').value;
+            if(name && phone.length >= 10) {
+                db.ref('users').push({ name, phone });
+                localStorage.setItem('cm_user', name);
+                location.reload();
+            } else { alert("Enter valid name and 10-digit mobile number"); }
+        }
+
+        window.onload = () => {
+            const user = localStorage.getItem('cm_user');
+            if(user) {
+                document.getElementById('auth-screen').style.display = 'none';
+                document.getElementById('greet').innerText = "Namaste, " + user;
+                db.ref('songs').on('value', (snap) => {
+                    const data = snap.val();
+                    allSongs = data ? Object.values(data) : [];
+                    render(allSongs);
+                });
+            }
+        };
+
+        function render(songs) {
+            document.getElementById('list-container').innerHTML = songs.map(s => `
+                <div class="track-card" onclick="play('${s.url}', '${s.title}', '${s.img}', '${s.artist}')">
+                    <img src="${s.img}">
+                    <b>${s.title}</b>
+                    <span>${s.artist}</span>
+                </div>`).join('');
+        }
+
+        function searchSongs() {
+            const term = document.getElementById('search-input').value.toLowerCase();
+            render(allSongs.filter(s => s.title.toLowerCase().includes(term) || s.artist.toLowerCase().includes(term)));
+        }
+
+        function startVoice() {
+            const rec = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+            rec.lang = 'kn-IN'; rec.start();
+            rec.onresult = (e) => { 
+                document.getElementById('search-input').value = e.results[0][0].transcript; 
+                searchSongs(); 
+            };
+        }
+
+        const audio = document.getElementById('audio');
+        function play(url, t, i, a) {
+            audio.src = url; audio.play();
+            document.getElementById('player').style.display = 'flex';
+            document.getElementById('p-title').innerText = t; 
+            document.getElementById('p-art').innerText = a; 
+            document.getElementById('p-img').src = i;
+            document.getElementById('p-play-btn').className = "fas fa-pause-circle p-play";
+        }
+
+        function togglePlay() {
+            if(audio.paused) { audio.play(); document.getElementById('p-play-btn').className = "fas fa-pause-circle p-play"; }
+            else { audio.pause(); document.getElementById('p-play-btn').className = "fas fa-play-circle p-play"; }
+        }
+
+        function goAdmin() { if(prompt("Pass:") === "1234") window.location.href = "admin.html"; }
+    </script>
+</body>
+</html>
