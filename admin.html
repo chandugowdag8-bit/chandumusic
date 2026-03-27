@@ -1,59 +1,71 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Admin Panel</title>
+    <title>Chandu Admin | Manage Music</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
     <style>
-        body { background: #111; color: #fff; font-family: sans-serif; padding: 40px; }
-        .box { background: #222; padding: 20px; border-radius: 10px; max-width: 400px; }
-        input { width: 100%; padding: 10px; margin: 10px 0; border-radius: 5px; border: none; }
-        button { width: 100%; padding: 10px; background: #1ED760; border: none; font-weight: bold; cursor: pointer; }
+        body { background: #080808; color: #fff; font-family: sans-serif; padding: 20px; }
+        .card { background: #111; padding: 25px; border-radius: 15px; border: 1px solid #222; max-width: 500px; margin: 0 auto 30px; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: 1px solid #333; background: #000; color: #fff; }
+        .btn { width: 100%; padding: 15px; background: #1ED760; border: none; border-radius: 50px; font-weight: 800; cursor: pointer; margin-top: 10px; }
+        table { width: 100%; border-collapse: collapse; max-width: 800px; margin: 0 auto; }
+        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #222; }
+        .del-btn { color: #ff4444; cursor: pointer; font-size: 1.2rem; }
     </style>
 </head>
 <body>
-    <div class="box">
-        <h3>Add New Song</h3>
-        <input type="text" id="t" placeholder="Song Title" onkeydown="chk(event, 'a')">
-        <input type="text" id="a" placeholder="Artist" onkeydown="chk(event, 'i')">
-        <input type="text" id="i" placeholder="Image URL" onkeydown="chk(event, 'u')">
-        <input type="text" id="u" placeholder="MP3 Link" onkeydown="chk(event, 'btn')">
-        <button id="btn" onclick="add()">Save Song</button>
+    <h2 style="text-align:center; color:#1ED760; margin-bottom:20px;">Add New Music</h2>
+    <div class="card">
+        <input type="text" id="t" placeholder="Song Title" onkeydown="nx(event, 'a')">
+        <input type="text" id="a" placeholder="Artist" onkeydown="nx(event, 'i')">
+        <input type="text" id="i" placeholder="Image URL (Poster)" onkeydown="nx(event, 'u')">
+        <input type="text" id="u" placeholder="Direct MP3 Link" onkeydown="nx(event, 'sv')">
+        <button class="btn" id="sv" onclick="add()">Save to Library</button>
     </div>
 
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+    <h2 style="text-align:center; margin-bottom:20px;">Current Songs</h2>
+    <table>
+        <thead><tr><th>Title</th><th>Artist</th><th>Action</th></tr></thead>
+        <tbody id="s-list"></tbody>
+    </table>
+
     <script>
         firebase.initializeApp({ databaseURL: "https://chandu-music-default-rtdb.europe-west1.firebasedatabase.app" });
         const db = firebase.database();
 
-        // Move to next input on Enter
-        function chk(e, next) {
+        // ⌨️ Enter Key Navigation
+        function nx(e, targetId) {
             if(e.key === "Enter") {
                 e.preventDefault();
-                if(next === 'btn') add();
-                else document.getElementById(next).focus();
+                if(targetId === 'sv') add();
+                else document.getElementById(targetId).focus();
             }
         }
 
+        // ➕ Add Song & Clear Inputs
         function add() {
-            const title = document.getElementById('t');
-            const artist = document.getElementById('a');
-            const img = document.getElementById('i');
-            const url = document.getElementById('u');
-
-            if(title.value && url.value) {
-                db.ref('songs').push({
-                    title: title.value,
-                    artist: artist.value,
-                    img: img.value,
-                    url: url.value
-                }).then(() => {
-                    // ✅ CLEAR ALL BOXES
-                    title.value = ""; artist.value = ""; img.value = ""; url.value = "";
-                    title.focus(); // Start again from top
-                    alert("Saved!");
+            const t = document.getElementById('t'), a = document.getElementById('a'), i = document.getElementById('i'), u = document.getElementById('u');
+            if(t.value && u.value) {
+                db.ref('songs').push({ title: t.value, artist: a.value, img: i.value, url: u.value })
+                .then(() => {
+                    t.value=""; a.value=""; i.value=""; u.value="";
+                    t.focus();
                 });
             }
         }
+
+        // 🗑️ Show and Delete Songs
+        db.ref('songs').on('value', snap => {
+            let html = ''; const data = snap.val();
+            for(let id in data) {
+                html += `<tr><td>${data[id].title}</td><td>${data[id].artist}</td>
+                <td><i class="fas fa-trash del-btn" onclick="del('${id}')"></i></td></tr>`;
+            }
+            document.getElementById('s-list').innerHTML = html;
+        });
+        function del(id) { if(confirm("Delete this song?")) db.ref('songs/'+id).remove(); }
     </script>
 </body>
 </html>
