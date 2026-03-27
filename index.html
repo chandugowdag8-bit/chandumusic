@@ -11,22 +11,25 @@
     <style>
         :root { --accent: #1ED760; --bg: #000; --glass: rgba(255,255,255,0.06); }
         * { margin:0; padding:0; box-sizing:border-box; font-family: 'Plus Jakarta Sans', sans-serif; }
-        body { background: #000; color: #fff; min-height: 100vh; padding-bottom: 180px; }
-        .container { max-width: 1100px; margin: 0 auto; padding: 20px; }
+        body { background: #000; color: #fff; min-height: 100vh; padding-bottom: 180px; overflow-x: hidden; }
         
-        /* Header & Search */
+        /* 🔒 Login Overlay */
+        #auth-screen { position: fixed; inset: 0; z-index: 10000; background: rgba(0,0,0,0.95); backdrop-filter: blur(20px); display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .auth-card { background: var(--glass); padding: 40px; border-radius: 30px; border: 1px solid #333; width: 100%; max-width: 380px; text-align: center; }
+        .auth-card input { width: 100%; padding: 15px; margin: 10px 0; border-radius: 12px; background: #111; color: #fff; border: 1px solid #444; outline: none; }
+        .auth-btn { width: 100%; padding: 15px; border-radius: 50px; background: var(--accent); border: none; font-weight: 800; cursor: pointer; margin-top: 10px; }
+
+        .container { max-width: 1100px; margin: 0 auto; padding: 20px; }
         header { display: flex; justify-content: space-between; align-items: center; padding: 10px 0 20px; }
         .search-container { position: relative; margin-bottom: 25px; }
-        .search-container input { width: 100%; padding: 14px 45px; border-radius: 12px; border: 1px solid #333; background: var(--glass); color: #fff; outline: none; font-size: 1rem; }
+        .search-container input { width: 100%; padding: 14px 45px; border-radius: 12px; border: 1px solid #333; background: var(--glass); color: #fff; outline: none; }
         .search-container i { position: absolute; left: 15px; top: 16px; color: #888; }
 
-        /* Grid */
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 20px; }
-        .track-card { background: var(--glass); padding: 15px; border-radius: 20px; cursor: pointer; transition: 0.3s; border: 1px solid transparent; }
+        .track-card { background: var(--glass); padding: 15px; border-radius: 20px; cursor: pointer; transition: 0.3s; border: 1px solid transparent; text-align: center; }
         .track-card:hover { border-color: var(--accent); background: rgba(255,255,255,0.1); }
         .track-card img { width: 100%; aspect-ratio: 1; border-radius: 15px; object-fit: cover; margin-bottom: 10px; }
         
-        /* 🕹️ Full Player Bar */
         .player-bar { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(10,10,10,0.95); backdrop-filter: blur(25px); border-top: 1px solid #222; padding: 15px 20px; display: none; z-index: 1000; }
         .player-inner { max-width: 1100px; margin: 0 auto; }
         .seek-box { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
@@ -42,9 +45,19 @@
 </head>
 <body>
 
+    <div id="auth-screen">
+        <div class="auth-card">
+            <h1 style="margin-bottom:10px;">Chandu Music</h1>
+            <p style="color:#888; margin-bottom:20px;">Please login to continue</p>
+            <input type="text" id="reg-name" placeholder="Enter Your Name">
+            <input type="number" id="reg-phone" placeholder="Mobile Number">
+            <button class="auth-btn" onclick="register()">Start Listening</button>
+        </div>
+    </div>
+
     <div class="container">
         <header>
-            <h2 id="greeting">Namaste, Chandu 🙏</h2>
+            <h2 id="greeting">Namaste 🙏</h2>
             <i class="fas fa-cog" style="color:#333; cursor:pointer;" onclick="goAdmin()"></i>
         </header>
 
@@ -53,7 +66,7 @@
             <input type="text" id="searchInput" placeholder="Search songs or artists..." oninput="searchSongs()">
         </div>
 
-        <div class="grid" id="list-container"></div>
+        <div id="list-container" class="grid"></div>
     </div>
 
     <div class="player-bar" id="player">
@@ -80,15 +93,38 @@
     <audio id="audio"></audio>
 
     <script>
-        // Use your actual Firebase URL
-        const firebaseConfig = { databaseURL: "https://chandu-music-default-rtdb.europe-west1.firebasedatabase.app" };
+        const firebaseConfig = { 
+            databaseURL: "https://chandu-music-default-rtdb.europe-west1.firebasedatabase.app" 
+        };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
         const audio = document.getElementById('audio');
         const seek = document.getElementById('seek-slider');
         let allSongs = [], currentIndex = -1;
 
-        // Load Songs
+        // 🟢 Check if user is already logged in
+        window.onload = () => {
+            const savedUser = localStorage.getItem('cm_user');
+            if(savedUser) {
+                document.getElementById('auth-screen').style.display = 'none';
+                document.getElementById('greeting').innerText = "Namaste, " + savedUser + " 🙏";
+            }
+        };
+
+        // 🟢 Register User
+        function register() {
+            const name = document.getElementById('reg-name').value;
+            const phone = document.getElementById('reg-phone').value;
+            if(name && phone.length >= 10) {
+                db.ref('users').push({ name, phone });
+                localStorage.setItem('cm_user', name);
+                location.reload(); 
+            } else {
+                alert("Please enter valid name and 10-digit phone number!");
+            }
+        }
+
+        // Fetch Songs
         db.ref('songs').on('value', snap => {
             const data = snap.val(); allSongs = [];
             for(let id in data) { allSongs.push({...data[id], id}); }
@@ -102,14 +138,12 @@
                 </div>`).join('');
         }
 
-        // 🔍 Search Function
         function searchSongs() {
             const q = document.getElementById('searchInput').value.toLowerCase();
             const filtered = allSongs.filter(s => s.title.toLowerCase().includes(q) || s.artist.toLowerCase().includes(q));
             render(filtered);
         }
 
-        // ⚙️ Admin Login
         function goAdmin() { if(prompt("Enter Admin Pass:") === "1234") window.location.href="admin.html"; }
 
         function playSong(i) {
@@ -128,7 +162,6 @@
             else { audio.pause(); document.getElementById('p-play-btn').className = "fas fa-play-circle p-btn play-main"; }
         }
 
-        // 🕹️ Seek Bar Logic
         audio.ontimeupdate = () => {
             if(!isNaN(audio.duration)) {
                 seek.value = (audio.currentTime / audio.duration) * 100;
